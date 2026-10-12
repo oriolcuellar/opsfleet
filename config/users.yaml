@@ -1,0 +1,17 @@
+# Sample users. Each one can only analyse the products in their scope.
+# A user with neither brands nor departments must set all_products: true.
+users:
+  - id: ceo
+    name: Carla Ruiz
+    role: CEO
+    all_products: true
+
+  - id: menswear
+    name: Marc Vidal
+    role: Head of Menswear
+    departments: ["Men"]
+
+  - id: levis
+    name: Laura Puig
+    role: Levi's Brand Manager
+    brands: ["Levi's"]
