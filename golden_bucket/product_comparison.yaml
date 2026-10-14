@@ -1,0 +1,17 @@
+question: Compare the performance of product X and product Y. Why do they perform differently?
+analyst_notes: >
+  Compare units sold, revenue, margin (sale_price - cost) and return rate. Price point and
+  return rate usually explain most of the difference. Find products by LOWER(name) LIKE.
+sql: |
+  SELECT p.name,
+         COUNT(*) AS units,
+         ROUND(SUM(IF(oi.status NOT IN ('Cancelled', 'Returned'), oi.sale_price, 0)), 2) AS revenue,
+         ROUND(SUM(IF(oi.status NOT IN ('Cancelled', 'Returned'), oi.sale_price - p.cost, 0)), 2) AS margin,
+         ROUND(COUNTIF(oi.status = 'Returned') / COUNT(*), 3) AS return_rate
+  FROM order_items oi
+  JOIN products p ON p.id = oi.product_id
+  WHERE LOWER(p.name) LIKE '%jeans%'
+  GROUP BY p.name
+  ORDER BY revenue DESC
+  LIMIT 10
+report: The cheaper product sells more units but the premium one has a better margin.

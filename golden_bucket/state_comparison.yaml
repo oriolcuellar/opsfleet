@@ -1,0 +1,16 @@
+question: Why are users in state X underspending compared to state Y?
+analyst_notes: >
+  Compare spend per customer, not total spend (bigger states always sell more). Split it into
+  orders per customer and average order value, then look at the category mix.
+sql: |
+  SELECT u.state,
+         COUNT(DISTINCT oi.user_id) AS customers,
+         ROUND(SUM(oi.sale_price) / COUNT(DISTINCT oi.user_id), 2) AS spend_per_customer,
+         ROUND(COUNT(DISTINCT oi.order_id) / COUNT(DISTINCT oi.user_id), 2) AS orders_per_customer,
+         ROUND(SUM(oi.sale_price) / COUNT(DISTINCT oi.order_id), 2) AS avg_order_value
+  FROM order_items oi
+  JOIN users u ON u.id = oi.user_id
+  WHERE oi.status NOT IN ('Cancelled', 'Returned')
+    AND u.state IN ('Texas', 'California')
+  GROUP BY u.state
+report: Texas spends less per customer mainly because of fewer repeat orders.

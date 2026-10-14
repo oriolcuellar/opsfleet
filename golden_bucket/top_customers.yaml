@@ -1,0 +1,14 @@
+question: Who are our top customers by total spend?
+analyst_notes: >
+  Customers are identified by user id only, never by name or email. Spend excludes Cancelled
+  and Returned items. Show number of orders next to total spend.
+sql: |
+  SELECT user_id,
+         COUNT(DISTINCT order_id) AS orders,
+         ROUND(SUM(sale_price), 2) AS total_spend
+  FROM order_items
+  WHERE status NOT IN ('Cancelled', 'Returned')
+  GROUP BY user_id
+  ORDER BY total_spend DESC
+  LIMIT 10
+report: The top 10 customers are repeat buyers with 3+ orders each.

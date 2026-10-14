@@ -1,0 +1,14 @@
+question: What was our monthly revenue over the last year?
+analyst_notes: >
+  Revenue = sum of order_items.sale_price, excluding Cancelled and Returned items, dated by
+  order_items.created_at. Use complete calendar months only (exclude the current month).
+sql: |
+  SELECT DATE_TRUNC(DATE(created_at), MONTH) AS month,
+         ROUND(SUM(sale_price), 2) AS revenue
+  FROM order_items
+  WHERE status NOT IN ('Cancelled', 'Returned')
+    AND DATE(created_at) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 12 MONTH)
+    AND DATE(created_at) < DATE_TRUNC(CURRENT_DATE(), MONTH)
+  GROUP BY month
+  ORDER BY month
+report: Revenue grew through the year with a Q4 peak and a dip in January.

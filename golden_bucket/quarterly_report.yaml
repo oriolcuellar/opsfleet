@@ -1,0 +1,17 @@
+question: Create a report for Q1 with insights and action items for Q2
+analyst_notes: >
+  Compare the quarter with the previous quarter and with the same quarter last year. Cover
+  revenue, orders, average order value and top categories. Every action item must come from
+  a finding. "Q1" without a year means the last completed Q1.
+sql: |
+  SELECT EXTRACT(YEAR FROM created_at) AS year,
+         EXTRACT(QUARTER FROM created_at) AS quarter,
+         ROUND(SUM(sale_price), 2) AS revenue,
+         COUNT(DISTINCT order_id) AS orders,
+         ROUND(SUM(sale_price) / COUNT(DISTINCT order_id), 2) AS avg_order_value
+  FROM order_items
+  WHERE status NOT IN ('Cancelled', 'Returned')
+    AND DATE(created_at) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), QUARTER), INTERVAL 5 QUARTER)
+  GROUP BY year, quarter
+  ORDER BY year, quarter
+report: Q1 revenue grew year over year but fell versus Q4. Action items focus on retention.
