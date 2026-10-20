@@ -4,11 +4,11 @@ A CLI chat agent that lets retail executives ask questions about sales, products
 in plain English, discuss the results and create reports with action items. Built with
 **LangGraph**, **Gemini** and **BigQuery** (`bigquery-public-data.thelook_ecommerce`).
 
-- **Design document (HLD, diagrams, how each requirement is solved):** [docs/architecture.md](docs/architecture.md)
+- **Design document (architecture, diagrams, and implementation details):** [docs/architecture.md](docs/architecture.md)
 
-## What the prototype does
+## Features
 
-| Requirement | Implementation |
+| Feature | Implementation |
 |---|---|
 | Natural-language analysis | Gemini writes BigQuery SQL through a `run_sql` tool, can run several queries per question, and explains the result. |
 | Reports | On request it writes a Markdown report (summary, findings, insights, action items) and saves it to the Saved Reports library. |
@@ -57,6 +57,21 @@ retail-analyst users             # sample users and their data access
 retail-analyst chat --user ceo
 ```
 
+### Environment configuration
+
+The application loads `.env` from the project root. [.env.example](.env.example)
+documents the required Gemini API key and Google Cloud project, plus the supported
+optional model names, BigQuery byte cap, SQL attempt limit (`MAX_SQL_ATTEMPTS`) and
+storage directory (`DATA_DIR`). Active optional values match the code defaults.
+Keep real credentials in `.env`, which is excluded from Git.
+
+Additional settings from the local configuration are included as commented-out
+references in the example, but are not read by this prototype. In particular,
+`MAX_SQL_CALLS_PER_TURN` and `RETAIL_AGENT_DATA_DIR` are not aliases for
+`MAX_SQL_ATTEMPTS` and `DATA_DIR`. Embeddings, Vertex AI, explicit BigQuery location,
+separate repair limits, price estimates and Langfuse cannot be enabled through
+those inactive settings.
+
 Sample users: `ceo` (all products), `menswear` (department Men), `levis` (brand Levi's).
 
 Chat commands: `/reports`, `/stats`, `/help`, `/exit`.
@@ -96,17 +111,12 @@ you: Delete all the reports we made in this conversation
 
 ## Framework choice
 
-**LangGraph**, chosen over Google ADK. The safety-critical parts of this brief are deterministic
-control flow (bounded self-correction, mandatory PII scrubbing, confirm-before-delete), and an
-explicit graph with `interrupt()` and a checkpointer makes them structural rather than dependent
-on the model. It also works with any LangChain chat model, so switching from AI Studio to
-Gemini Enterprise Agent Platform (formerly Vertex AI) is a configuration change.
-
-**Experience:** I have extensive production experience with LangGraph and have built one proof
-of concept with ADK. Choosing LangGraph does not rule out Google's managed hosting: Agent
-Runtime on Agent Platform deploys LangGraph agents through its managed
-template; ADK gets deeper integration there, which is the trade-off accepted for explicit
-control flow.
+**LangGraph** provides explicit control flow for bounded self-correction, mandatory PII
+scrubbing and confirm-before-delete. Its `interrupt()` and checkpointer make these safeguards
+structural rather than dependent on the model. It also works with any LangChain chat model,
+so switching from AI Studio to Gemini Enterprise Agent Platform (formerly Vertex AI) is a
+configuration change. Agent Runtime on Agent Platform can deploy LangGraph agents through
+its managed template.
 
 **Gemini Flash-Lite** as the default model for cost and latency (it is called several times per
 question), with an older Flash-Lite version as fallback. Both are set in `.env`.

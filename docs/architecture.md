@@ -2,18 +2,18 @@
 
 A chat assistant that lets non-technical executives ask questions about sales, products and
 customers, discuss the answers and get reports with action items. This document describes the
-production design. The prototype in this repository implements the parts the assignment asks
-for (safety and PII, destructive-action confirmation, resilience, observability, CLI); section 4
-maps each design component to the prototype.
+production design and the current local implementation, including safety and PII masking,
+destructive-action confirmation, resilience, observability and the CLI. Section 4 compares
+the local implementation with the proposed production architecture.
 
 ## 1. Assumptions
 
 | # | Assumption |
 |---|---|
-| A1 | "Products related to him" means each user has a product scope: a list of brands and/or departments (the CEO sees everything). Scope is configured by an admin, not chosen by the user. |
+| A1 | Each user has a product scope: a list of brands and/or departments (the CEO sees everything). Scope is configured by an admin, not chosen by the user. |
 | A2 | Only `orders`, `order_items`, `products` and `users` are exposed to the agent. |
 | A3 | PII = customer `first_name`, `last_name`, `email`, `street_address`, `postal_code`, `latitude`, `longitude`, `user_geom`. Customers are referred to by id only. |
-| A4 | A Saved Report is created only when the user asks for a report. "Client X" in "delete all reports mentioning Client X" is free text matched against the report title and body. |
+| A4 | A Saved Report is created only when the user asks for a report. Text-based deletion requests match against the report title and body. |
 | A5 | Users can only see and delete their own reports. |
 
 ## 2. Production architecture
@@ -65,7 +65,7 @@ flowchart LR
 
 | Component | Choice | Why |
 |---|---|---|
-| Agent runtime | **LangGraph** on **Cloud Run** | Chosen over Google ADK: the safety-critical parts (bounded self-correction, mandatory scrubbing, confirm-before-delete) are deterministic control flow, and an explicit graph with `interrupt()` and a checkpointer makes them structural instead of prompt-dependent. Cloud Run scales to zero and is stateless; conversation state lives in a Firestore checkpointer, so any instance can resume a paused confirmation. Alternative: Agent Runtime (Gemini Enterprise Agent Platform), which hosts LangGraph agents through a managed template with a Cloud SQL / AlloyDB checkpointer; Cloud Run was preferred for IAP integration and full control of the service. |
+| Agent runtime | **LangGraph** on **Cloud Run** | The safety-critical parts (bounded self-correction, mandatory scrubbing, confirm-before-delete) are deterministic control flow, and an explicit graph with `interrupt()` and a checkpointer makes them structural instead of prompt-dependent. Cloud Run scales to zero and is stateless; conversation state lives in a Firestore checkpointer, so any instance can resume a paused confirmation. Alternative: Agent Runtime (Gemini Enterprise Agent Platform), which hosts LangGraph agents through a managed template with a Cloud SQL / AlloyDB checkpointer; Cloud Run was preferred for IAP integration and full control of the service. |
 | Admin app | **Cloud Run** behind IAP | Small web app where non-developers edit the persona (versioned, with preview), user scopes, and review candidate trios. No redeploy needed for any of them. |
 | LLM | **Gemini Flash-Lite** (primary) + the previous Flash-Lite version (fallback) via **Gemini Enterprise Agent Platform (formerly Vertex AI)**; Gemini embedding model for trios | Good tool calling and SQL quality at low cost and latency. Agent Platform gives data residency, IAM (no API keys) and higher quotas than AI Studio. The prototype uses AI Studio keys. |
 | Data | **BigQuery** with a read-only service account | The dataset already lives there. Dry runs give a free cost estimate and `maximum_bytes_billed` caps every query. Authorized views per scope are the second enforcement point behind the SQL rewrite. |
@@ -111,7 +111,7 @@ sequenceDiagram
     A->>R: delete exactly those ids
 ```
 
-## 3. How each requirement is solved
+## 3. Capabilities and safeguards
 
 ### 3.1 Hybrid Intelligence (Golden Bucket)
 
@@ -199,7 +199,7 @@ Production adds a circuit breaker per dependency, per-user rate limits and a dai
   traceable to a query, action items follow from findings), calibrated against analyst
   ratings on a sample.
 * **UX:** thumbs up/down, follow-up rate ("what do you mean?"), abandoned conversations,
-  time to answer, and periodic interviews with executives.
+  time to answer, and periodic feedback sessions with executives.
 
 ### 3.7 Observability
 
